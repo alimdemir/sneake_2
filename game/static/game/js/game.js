@@ -33,6 +33,12 @@ class SnakeGame {
         this.downBtn = document.getElementById('downBtn');
         this.leftBtn = document.getElementById('leftBtn');
         this.rightBtn = document.getElementById('rightBtn');
+        this.gameOverModal = document.getElementById('gameOverModal');
+        this.finalScoreElement = document.getElementById('finalScore');
+        this.playerNameInput = document.getElementById('playerName');
+        this.saveScoreBtn = document.getElementById('saveScoreBtn');
+        this.playAgainBtn = document.getElementById('playAgainBtn');
+        this.filterButtons = document.querySelectorAll('.filter-btn');
 
         // Sound effects
         this.eatSound = document.getElementById('eatSound');
@@ -40,6 +46,7 @@ class SnakeGame {
 
         this.highScoreElement.textContent = this.highScore;
         this.bindEvents();
+        this.loadHighScores();
     }
 
     bindEvents() {
@@ -60,6 +67,22 @@ class SnakeGame {
         this.downBtn.addEventListener('click', () => this.handleDirection('down'));
         this.leftBtn.addEventListener('click', () => this.handleDirection('left'));
         this.rightBtn.addEventListener('click', () => this.handleDirection('right'));
+
+        // Game over modal
+        this.saveScoreBtn.addEventListener('click', () => this.saveScore());
+        this.playAgainBtn.addEventListener('click', () => {
+            this.gameOverModal.style.display = 'none';
+            this.start();
+        });
+
+        // High score filters
+        this.filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.filterButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.loadHighScores(btn.dataset.difficulty);
+            });
+        });
     }
 
     handleDirection(newDirection) {
@@ -264,17 +287,63 @@ class SnakeGame {
         clearInterval(this.gameLoop);
         this.gameOverSound.play();
         
-        // Draw game over screen
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        // Show game over modal
+        this.finalScoreElement.textContent = this.score;
+        this.gameOverModal.style.display = 'flex';
+    }
+
+    async saveScore() {
+        const playerName = this.playerNameInput.value.trim() || 'Anonim';
         
-        this.ctx.fillStyle = 'white';
-        this.ctx.font = '30px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('Oyun Bitti!', this.canvas.width/2, this.canvas.height/2 - 30);
-        this.ctx.font = '20px Arial';
-        this.ctx.fillText(`Skorunuz: ${this.score}`, this.canvas.width/2, this.canvas.height/2 + 10);
-        this.ctx.fillText('Tekrar başlamak için Başlat\'a tıklayın', this.canvas.width/2, this.canvas.height/2 + 50);
+        try {
+            const response = await fetch('/api/save-score/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    player_name: playerName,
+                    score: this.score,
+                    difficulty: this.difficulty
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                this.loadHighScores();
+                this.gameOverModal.style.display = 'none';
+            } else {
+                alert('Skor kaydedilirken bir hata oluştu: ' + data.message);
+            }
+        } catch (error) {
+            alert('Skor kaydedilirken bir hata oluştu: ' + error.message);
+        }
+    }
+
+    async loadHighScores(difficulty = 'all') {
+        try {
+            const response = await fetch(`/api/high-scores/?difficulty=${difficulty}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                const tbody = document.getElementById('highScoresBody');
+                tbody.innerHTML = '';
+                
+                data.scores.forEach((score, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${score.player_name}</td>
+                        <td>${score.score}</td>
+                        <td>${score.difficulty}</td>
+                        <td>${score.date}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        } catch (error) {
+            console.error('Yüksek skorlar yüklenirken hata oluştu:', error);
+        }
     }
 
     reset() {
