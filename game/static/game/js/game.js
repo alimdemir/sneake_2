@@ -9,14 +9,36 @@ class SnakeGame {
         this.food = this.generateFood();
         this.direction = 'right';
         this.score = 0;
+        this.highScore = localStorage.getItem('snakeHighScore') || 0;
         this.gameLoop = null;
         this.isPaused = false;
-        this.speed = 150;
+        this.difficulty = 'medium';
+        this.speeds = {
+            easy: 200,
+            medium: 150,
+            hard: 100
+        };
+        this.speed = this.speeds[this.difficulty];
+        this.foodAnimation = 0;
+        this.lastRenderTime = 0;
+        this.gameOver = false;
 
+        // DOM elements
         this.startBtn = document.getElementById('startBtn');
         this.pauseBtn = document.getElementById('pauseBtn');
         this.scoreElement = document.getElementById('score');
+        this.highScoreElement = document.getElementById('highScore');
+        this.difficultySelect = document.getElementById('difficulty');
+        this.upBtn = document.getElementById('upBtn');
+        this.downBtn = document.getElementById('downBtn');
+        this.leftBtn = document.getElementById('leftBtn');
+        this.rightBtn = document.getElementById('rightBtn');
 
+        // Sound effects
+        this.eatSound = document.getElementById('eatSound');
+        this.gameOverSound = document.getElementById('gameOverSound');
+
+        this.highScoreElement.textContent = this.highScore;
         this.bindEvents();
     }
 
@@ -24,19 +46,23 @@ class SnakeGame {
         document.addEventListener('keydown', this.handleKeyPress.bind(this));
         this.startBtn.addEventListener('click', () => this.start());
         this.pauseBtn.addEventListener('click', () => this.togglePause());
+        this.difficultySelect.addEventListener('change', (e) => {
+            this.difficulty = e.target.value;
+            this.speed = this.speeds[this.difficulty];
+            if (this.gameLoop) {
+                clearInterval(this.gameLoop);
+                this.gameLoop = setInterval(() => this.update(), this.speed);
+            }
+        });
+
+        // Mobile controls
+        this.upBtn.addEventListener('click', () => this.handleDirection('up'));
+        this.downBtn.addEventListener('click', () => this.handleDirection('down'));
+        this.leftBtn.addEventListener('click', () => this.handleDirection('left'));
+        this.rightBtn.addEventListener('click', () => this.handleDirection('right'));
     }
 
-    handleKeyPress(event) {
-        const keyMap = {
-            'ArrowUp': 'up',
-            'ArrowDown': 'down',
-            'ArrowLeft': 'left',
-            'ArrowRight': 'right'
-        };
-
-        const newDirection = keyMap[event.key];
-        if (!newDirection) return;
-
+    handleDirection(newDirection) {
         const opposites = {
             'up': 'down',
             'down': 'up',
@@ -46,6 +72,24 @@ class SnakeGame {
 
         if (opposites[newDirection] !== this.direction) {
             this.direction = newDirection;
+        }
+    }
+
+    handleKeyPress(event) {
+        const keyMap = {
+            'ArrowUp': 'up',
+            'ArrowDown': 'down',
+            'ArrowLeft': 'left',
+            'ArrowRight': 'right',
+            'w': 'up',
+            's': 'down',
+            'a': 'left',
+            'd': 'right'
+        };
+
+        const newDirection = keyMap[event.key.toLowerCase()];
+        if (newDirection) {
+            this.handleDirection(newDirection);
         }
     }
 
@@ -63,6 +107,8 @@ class SnakeGame {
     }
 
     update() {
+        if (this.isPaused || this.gameOver) return;
+
         const head = {...this.snake[0]};
 
         switch (this.direction) {
@@ -75,13 +121,13 @@ class SnakeGame {
         // Check collision with walls
         if (head.x < 0 || head.x >= this.canvas.width / this.gridSize ||
             head.y < 0 || head.y >= this.canvas.height / this.gridSize) {
-            this.gameOver();
+            this.endGame();
             return;
         }
 
         // Check collision with self
         if (this.snake.some(segment => segment.x === head.x && segment.y === head.y)) {
-            this.gameOver();
+            this.endGame();
             return;
         }
 
@@ -92,54 +138,153 @@ class SnakeGame {
             this.score += 10;
             this.scoreElement.textContent = this.score;
             this.food = this.generateFood();
-            // Increase speed
-            if (this.speed > 50) {
-                this.speed -= 5;
-                clearInterval(this.gameLoop);
-                this.gameLoop = setInterval(() => this.update(), this.speed);
+            this.eatSound.currentTime = 0;
+            this.eatSound.play();
+            
+            // Update high score
+            if (this.score > this.highScore) {
+                this.highScore = this.score;
+                this.highScoreElement.textContent = this.highScore;
+                localStorage.setItem('snakeHighScore', this.highScore);
             }
         } else {
             this.snake.pop();
         }
+
+        this.draw();
     }
 
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // Draw grid
+        this.ctx.strokeStyle = '#f0f0f0';
+        for (let i = 0; i < this.canvas.width; i += this.gridSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(i, 0);
+            this.ctx.lineTo(i, this.canvas.height);
+            this.ctx.stroke();
+        }
+        for (let i = 0; i < this.canvas.height; i += this.gridSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, i);
+            this.ctx.lineTo(this.canvas.width, i);
+            this.ctx.stroke();
+        }
+
         // Draw snake
-        this.ctx.fillStyle = '#4CAF50';
-        this.snake.forEach(segment => {
-            this.ctx.fillRect(
+        this.snake.forEach((segment, index) => {
+            const gradient = this.ctx.createLinearGradient(
                 segment.x * this.gridSize,
                 segment.y * this.gridSize,
+                (segment.x + 1) * this.gridSize,
+                (segment.y + 1) * this.gridSize
+            );
+            
+            if (index === 0) {
+                // Head color
+                gradient.addColorStop(0, '#2E7D32');
+                gradient.addColorStop(1, '#4CAF50');
+            } else {
+                // Body color
+                gradient.addColorStop(0, '#4CAF50');
+                gradient.addColorStop(1, '#81C784');
+            }
+            
+            this.ctx.fillStyle = gradient;
+            this.ctx.fillRect(
+                segment.x * this.gridSize + 1,
+                segment.y * this.gridSize + 1,
                 this.gridSize - 2,
                 this.gridSize - 2
             );
+
+            // Add eyes to head
+            if (index === 0) {
+                this.ctx.fillStyle = 'white';
+                const eyeSize = this.gridSize / 5;
+                const eyeOffset = this.gridSize / 3;
+                
+                // Position eyes based on direction
+                let leftEyeX, leftEyeY, rightEyeX, rightEyeY;
+                switch (this.direction) {
+                    case 'right':
+                        leftEyeX = segment.x * this.gridSize + this.gridSize - eyeOffset;
+                        leftEyeY = segment.y * this.gridSize + eyeOffset;
+                        rightEyeX = segment.x * this.gridSize + this.gridSize - eyeOffset;
+                        rightEyeY = segment.y * this.gridSize + this.gridSize - eyeOffset;
+                        break;
+                    case 'left':
+                        leftEyeX = segment.x * this.gridSize + eyeOffset;
+                        leftEyeY = segment.y * this.gridSize + eyeOffset;
+                        rightEyeX = segment.x * this.gridSize + eyeOffset;
+                        rightEyeY = segment.y * this.gridSize + this.gridSize - eyeOffset;
+                        break;
+                    case 'up':
+                        leftEyeX = segment.x * this.gridSize + eyeOffset;
+                        leftEyeY = segment.y * this.gridSize + eyeOffset;
+                        rightEyeX = segment.x * this.gridSize + this.gridSize - eyeOffset;
+                        rightEyeY = segment.y * this.gridSize + eyeOffset;
+                        break;
+                    case 'down':
+                        leftEyeX = segment.x * this.gridSize + eyeOffset;
+                        leftEyeY = segment.y * this.gridSize + this.gridSize - eyeOffset;
+                        rightEyeX = segment.x * this.gridSize + this.gridSize - eyeOffset;
+                        rightEyeY = segment.y * this.gridSize + this.gridSize - eyeOffset;
+                        break;
+                }
+                
+                this.ctx.beginPath();
+                this.ctx.arc(leftEyeX, leftEyeY, eyeSize, 0, Math.PI * 2);
+                this.ctx.arc(rightEyeX, rightEyeY, eyeSize, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
         });
 
-        // Draw food
+        // Draw food with animation
+        this.foodAnimation = (this.foodAnimation + 0.1) % (Math.PI * 2);
+        const foodSize = this.gridSize - 2 + Math.sin(this.foodAnimation) * 2;
+        const foodX = this.food.x * this.gridSize + (this.gridSize - foodSize) / 2;
+        const foodY = this.food.y * this.gridSize + (this.gridSize - foodSize) / 2;
+
         this.ctx.fillStyle = '#f44336';
-        this.ctx.fillRect(
-            this.food.x * this.gridSize,
-            this.food.y * this.gridSize,
-            this.gridSize - 2,
-            this.gridSize - 2
+        this.ctx.beginPath();
+        this.ctx.arc(
+            foodX + foodSize/2,
+            foodY + foodSize/2,
+            foodSize/2,
+            0,
+            Math.PI * 2
         );
+        this.ctx.fill();
     }
 
-    gameOver() {
+    endGame() {
+        this.gameOver = true;
         clearInterval(this.gameLoop);
-        alert(`Oyun Bitti! Skorunuz: ${this.score}`);
-        this.reset();
+        this.gameOverSound.play();
+        
+        // Draw game over screen
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = '30px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('Oyun Bitti!', this.canvas.width/2, this.canvas.height/2 - 30);
+        this.ctx.font = '20px Arial';
+        this.ctx.fillText(`Skorunuz: ${this.score}`, this.canvas.width/2, this.canvas.height/2 + 10);
+        this.ctx.fillText('Tekrar başlamak için Başlat\'a tıklayın', this.canvas.width/2, this.canvas.height/2 + 50);
     }
 
     reset() {
         this.snake = [{x: 5, y: 5}];
         this.direction = 'right';
         this.score = 0;
-        this.speed = 150;
         this.scoreElement.textContent = this.score;
         this.food = this.generateFood();
+        this.gameOver = false;
+        this.foodAnimation = 0;
     }
 
     start() {
@@ -147,12 +292,7 @@ class SnakeGame {
             clearInterval(this.gameLoop);
         }
         this.reset();
-        this.gameLoop = setInterval(() => {
-            if (!this.isPaused) {
-                this.update();
-                this.draw();
-            }
-        }, this.speed);
+        this.gameLoop = setInterval(() => this.update(), this.speed);
     }
 
     togglePause() {

@@ -10,15 +10,33 @@
 <body>
     <div class="container">
         <h1>Yılan Oyunu</h1>
+        <div class="game-info">
+            <div class="score">Skor: <span id="score">0</span></div>
+            <div class="high-score">En Yüksek Skor: <span id="highScore">0</span></div>
+        </div>
         <div class="game-container">
             <canvas id="gameCanvas"></canvas>
-            <div class="score">Skor: <span id="score">0</span></div>
+            <div class="mobile-controls">
+                <button id="upBtn">↑</button>
+                <div class="horizontal-controls">
+                    <button id="leftBtn">←</button>
+                    <button id="rightBtn">→</button>
+                </div>
+                <button id="downBtn">↓</button>
+            </div>
         </div>
         <div class="controls">
+            <select id="difficulty">
+                <option value="easy">Kolay</option>
+                <option value="medium" selected>Orta</option>
+                <option value="hard">Zor</option>
+            </select>
             <button id="startBtn">Başlat</button>
             <button id="pauseBtn">Duraklat</button>
         </div>
     </div>
+    <audio id="eatSound" src="{% static 'game/sounds/eat.mp3' %}" preload="auto"></audio>
+    <audio id="gameOverSound" src="{% static 'game/sounds/game-over.mp3' %}" preload="auto"></audio>
     <script src="{% static 'game/js/game.js' %}"></script>
 </body>
 </html> 
