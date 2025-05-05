@@ -34,7 +34,53 @@
             <button id="startBtn">Başlat</button>
             <button id="pauseBtn">Duraklat</button>
         </div>
+        
+        <div class="high-scores-container">
+            <h2>Yüksek Skorlar</h2>
+            <div class="difficulty-filter">
+                <button class="filter-btn active" data-difficulty="all">Tümü</button>
+                <button class="filter-btn" data-difficulty="easy">Kolay</button>
+                <button class="filter-btn" data-difficulty="medium">Orta</button>
+                <button class="filter-btn" data-difficulty="hard">Zor</button>
+            </div>
+            <table class="high-scores-table">
+                <thead>
+                    <tr>
+                        <th>Sıra</th>
+                        <th>Oyuncu</th>
+                        <th>Skor</th>
+                        <th>Zorluk</th>
+                        <th>Tarih</th>
+                    </tr>
+                </thead>
+                <tbody id="highScoresBody">
+                    {% for score in high_scores %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ score.player_name }}</td>
+                        <td>{{ score.score }}</td>
+                        <td>{{ score.difficulty }}</td>
+                        <td>{{ score.date|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
+
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content">
+            <h2>Oyun Bitti!</h2>
+            <p>Skorunuz: <span id="finalScore">0</span></p>
+            <div class="player-name-input">
+                <label for="playerName">İsminiz:</label>
+                <input type="text" id="playerName" maxlength="50" placeholder="İsminizi girin">
+            </div>
+            <button id="saveScoreBtn">Skoru Kaydet</button>
+            <button id="playAgainBtn">Tekrar Oyna</button>
+        </div>
+    </div>
+
     <audio id="eatSound" src="{% static 'game/sounds/eat.mp3' %}" preload="auto"></audio>
     <audio id="gameOverSound" src="{% static 'game/sounds/game-over.mp3' %}" preload="auto"></audio>
     <script src="{% static 'game/js/game.js' %}"></script>
