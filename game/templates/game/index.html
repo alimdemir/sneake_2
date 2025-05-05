@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yılan Oyunu</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'game/css/style.css' %}">
+</head>
+<body>
+    <div class="container">
+        <h1>Yılan Oyunu</h1>
+        <div class="game-container">
+            <canvas id="gameCanvas"></canvas>
+            <div class="score">Skor: <span id="score">0</span></div>
+        </div>
+        <div class="controls">
+            <button id="startBtn">Başlat</button>
+            <button id="pauseBtn">Duraklat</button>
+        </div>
+    </div>
+    <script src="{% static 'game/js/game.js' %}"></script>
+</body>
+</html> 
