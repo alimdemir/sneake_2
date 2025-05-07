@@ -5,6 +5,15 @@ from django.views.decorators.http import require_http_methods
 import json
 from .models import HighScore
 
+# Helper function to format scores
+def format_scores(scores):
+    return [{
+        'player_name': score.player_name,
+        'score': score.score,
+        'difficulty': score.difficulty,
+        'date': score.date.strftime('%d/%m/%Y %H:%M')
+    } for score in scores]
+
 # Create your views here.
 
 def index(request):
@@ -30,12 +39,7 @@ def save_score(request):
 
         # En yüksek 10 skoru döndür
         top_scores = HighScore.objects.all()[:10]
-        scores_list = [{
-            'player_name': score.player_name,
-            'score': score.score,
-            'difficulty': score.difficulty,
-            'date': score.date.strftime('%d/%m/%Y %H:%M')
-        } for score in top_scores]
+        scores_list = format_scores(top_scores)
 
         return JsonResponse({
             'success': True,
@@ -56,12 +60,7 @@ def get_high_scores(request):
     else:
         scores = HighScore.objects.all()[:10]
 
-    scores_list = [{
-        'player_name': score.player_name,
-        'score': score.score,
-        'difficulty': score.difficulty,
-        'date': score.date.strftime('%d/%m/%Y %H:%M')
-    } for score in scores]
+    scores_list = format_scores(scores)
 
     return JsonResponse({
         'success': True,
