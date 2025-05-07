@@ -2,90 +2,78 @@ class SnakeGame {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
-        this.canvas.width = 400;
-        this.canvas.height = 400;
         this.gridSize = 20;
         this.snake = [{x: 5, y: 5}];
         this.food = this.generateFood();
         this.direction = 'right';
+        this.nextDirection = 'right';
         this.score = 0;
         this.highScore = localStorage.getItem('snakeHighScore') || 0;
         this.gameLoop = null;
         this.isPaused = false;
+        this.isGameOver = false;
+        this.speed = 150;
         this.difficulty = 'medium';
-        this.speeds = {
-            easy: 200,
-            medium: 150,
-            hard: 100
-        };
-        this.speed = this.speeds[this.difficulty];
         this.foodAnimation = 0;
-        this.lastRenderTime = 0;
-        this.gameOver = false;
+        this.snakeAnimation = 0;
+        this.powerUp = null;
+        this.powerUpTimer = null;
+        this.powerUpDuration = 5000;
+        this.powerUpTypes = ['speed', 'double'];
+        this.doublePoints = false;
+        this.originalSpeed = 150;
 
-        // DOM elements
-        this.startBtn = document.getElementById('startBtn');
-        this.pauseBtn = document.getElementById('pauseBtn');
-        this.scoreElement = document.getElementById('score');
-        this.highScoreElement = document.getElementById('highScore');
-        this.difficultySelect = document.getElementById('difficulty');
-        this.upBtn = document.getElementById('upBtn');
-        this.downBtn = document.getElementById('downBtn');
-        this.leftBtn = document.getElementById('leftBtn');
-        this.rightBtn = document.getElementById('rightBtn');
-        this.gameOverModal = document.getElementById('gameOverModal');
-        this.finalScoreElement = document.getElementById('finalScore');
-        this.playerNameInput = document.getElementById('playerName');
-        this.saveScoreBtn = document.getElementById('saveScoreBtn');
-        this.playAgainBtn = document.getElementById('playAgainBtn');
-        this.filterButtons = document.querySelectorAll('.filter-btn');
+        // Canvas boyutlarını büyüt
+        this.canvas.width = 800;
+        this.canvas.height = 600;
 
-        // Sound effects
-        this.eatSound = document.getElementById('eatSound');
-        this.gameOverSound = document.getElementById('gameOverSound');
-
-        this.highScoreElement.textContent = this.highScore;
-        this.bindEvents();
-        this.loadHighScores();
+        // Event listeners
+        this.setupEventListeners();
+        
+        // UI elementlerini güncelle
+        this.updateUI();
     }
 
-    bindEvents() {
+    setupEventListeners() {
         document.addEventListener('keydown', this.handleKeyPress.bind(this));
-        this.startBtn.addEventListener('click', () => this.start());
-        this.pauseBtn.addEventListener('click', () => this.togglePause());
-        this.difficultySelect.addEventListener('change', (e) => {
+        document.getElementById('upBtn').addEventListener('click', () => this.setDirection('up'));
+        document.getElementById('downBtn').addEventListener('click', () => this.setDirection('down'));
+        document.getElementById('leftBtn').addEventListener('click', () => this.setDirection('left'));
+        document.getElementById('rightBtn').addEventListener('click', () => this.setDirection('right'));
+        document.getElementById('startBtn').addEventListener('click', () => this.start());
+        document.getElementById('pauseBtn').addEventListener('click', () => this.togglePause());
+        document.getElementById('restartBtn').addEventListener('click', () => this.restart());
+        document.getElementById('difficulty').addEventListener('change', (e) => {
             this.difficulty = e.target.value;
-            this.speed = this.speeds[this.difficulty];
-            if (this.gameLoop) {
-                clearInterval(this.gameLoop);
-                this.gameLoop = setInterval(() => this.update(), this.speed);
-            }
+            this.setSpeed();
         });
-
-        // Mobile controls
-        this.upBtn.addEventListener('click', () => this.handleDirection('up'));
-        this.downBtn.addEventListener('click', () => this.handleDirection('down'));
-        this.leftBtn.addEventListener('click', () => this.handleDirection('left'));
-        this.rightBtn.addEventListener('click', () => this.handleDirection('right'));
-
-        // Game over modal
-        this.saveScoreBtn.addEventListener('click', () => this.saveScore());
-        this.playAgainBtn.addEventListener('click', () => {
-            this.gameOverModal.style.display = 'none';
-            this.start();
-        });
-
-        // High score filters
-        this.filterButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.filterButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                this.loadHighScores(btn.dataset.difficulty);
-            });
-        });
+        document.getElementById('saveScoreBtn').addEventListener('click', () => this.saveScore());
+        document.getElementById('playAgainBtn').addEventListener('click', () => this.restart());
     }
 
-    handleDirection(newDirection) {
+    handleKeyPress(event) {
+        const key = event.key.toLowerCase();
+        const directions = {
+            'arrowup': 'up',
+            'arrowdown': 'down',
+            'arrowleft': 'left',
+            'arrowright': 'right',
+            'w': 'up',
+            's': 'down',
+            'a': 'left',
+            'd': 'right'
+        };
+
+        if (directions[key]) {
+            event.preventDefault();
+            this.setDirection(directions[key]);
+        } else if (key === 'p') {
+            event.preventDefault();
+            this.togglePause();
+        }
+    }
+
+    setDirection(newDirection) {
         const opposites = {
             'up': 'down',
             'down': 'up',
@@ -94,31 +82,14 @@ class SnakeGame {
         };
 
         if (opposites[newDirection] !== this.direction) {
-            this.direction = newDirection;
-        }
-    }
-
-    handleKeyPress(event) {
-        const keyMap = {
-            'ArrowUp': 'up',
-            'ArrowDown': 'down',
-            'ArrowLeft': 'left',
-            'ArrowRight': 'right',
-            'w': 'up',
-            's': 'down',
-            'a': 'left',
-            'd': 'right'
-        };
-
-        const newDirection = keyMap[event.key.toLowerCase()];
-        if (newDirection) {
-            this.handleDirection(newDirection);
+            this.nextDirection = newDirection;
         }
     }
 
     generateFood() {
-        const maxX = this.canvas.width / this.gridSize - 1;
-        const maxY = this.canvas.height / this.gridSize - 1;
+        const maxX = Math.floor(this.canvas.width / this.gridSize);
+        const maxY = Math.floor(this.canvas.height / this.gridSize);
+        
         let food;
         do {
             food = {
@@ -126,14 +97,17 @@ class SnakeGame {
                 y: Math.floor(Math.random() * maxY)
             };
         } while (this.snake.some(segment => segment.x === food.x && segment.y === food.y));
+        
         return food;
     }
 
     update() {
-        if (this.isPaused || this.gameOver) return;
+        if (this.isPaused || this.isGameOver) return;
 
+        this.direction = this.nextDirection;
         const head = {...this.snake[0]};
 
+        // Yeni baş pozisyonunu hesapla
         switch (this.direction) {
             case 'up': head.y--; break;
             case 'down': head.y++; break;
@@ -141,162 +115,401 @@ class SnakeGame {
             case 'right': head.x++; break;
         }
 
-        // Check collision with walls
-        if (head.x < 0 || head.x >= this.canvas.width / this.gridSize ||
-            head.y < 0 || head.y >= this.canvas.height / this.gridSize) {
-            this.endGame();
+        // Duvarları geçme kontrolü
+        const maxX = Math.floor(this.canvas.width / this.gridSize);
+        const maxY = Math.floor(this.canvas.height / this.gridSize);
+
+        // X ekseni kontrolü (yatay geçiş)
+        if (head.x < 0) {
+            head.x = maxX - 1;
+        } else if (head.x >= maxX) {
+            head.x = 0;
+        }
+
+        // Y ekseni kontrolü (dikey geçiş)
+        if (head.y < 0) {
+            head.y = maxY - 1;
+        } else if (head.y >= maxY) {
+            head.y = 0;
+        }
+
+        // Kendine çarpma kontrolü
+        if (this.snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)) {
+            this.gameOver();
             return;
         }
 
-        // Check collision with self
-        if (this.snake.some(segment => segment.x === head.x && segment.y === head.y)) {
-            this.endGame();
-            return;
-        }
-
+        // Yeni başı ekle
         this.snake.unshift(head);
 
-        // Check if food is eaten
+        // Yemek yeme kontrolü
         if (head.x === this.food.x && head.y === this.food.y) {
-            this.score += 10;
-            this.scoreElement.textContent = this.score;
+            const points = this.doublePoints ? 20 : 10;
+            this.score += points;
             this.food = this.generateFood();
-            this.eatSound.currentTime = 0;
-            this.eatSound.play();
-            
-            // Update high score
-            if (this.score > this.highScore) {
-                this.highScore = this.score;
-                this.highScoreElement.textContent = this.highScore;
-                localStorage.setItem('snakeHighScore', this.highScore);
-            }
+            this.generatePowerUp();
+            this.updateUI();
+            this.playEatSound();
         } else {
             this.snake.pop();
+        }
+
+        // Güç-up yeme kontrolü
+        if (this.powerUp && head.x === this.powerUp.x && head.y === this.powerUp.y) {
+            this.activatePowerUp(this.powerUp.type);
+            this.powerUp = null;
+            this.playPowerUpSound();
         }
 
         this.draw();
     }
 
     draw() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // Canvas'ı temizle
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Draw grid
-        this.ctx.strokeStyle = '#f0f0f0';
+        // Izgara çiz
+        this.drawGrid();
+
+        // Yılanı çiz
+        this.snake.forEach((segment, index) => {
+            const x = segment.x * this.gridSize;
+            const y = segment.y * this.gridSize;
+            
+            // Yılan gövdesi için gradient
+            const gradient = this.ctx.createLinearGradient(x, y, x + this.gridSize, y + this.gridSize);
+            if (index === 0) {
+                // Baş kısmı
+                gradient.addColorStop(0, '#4ecca3');
+                gradient.addColorStop(1, '#45b392');
+            } else {
+                // Gövde kısmı
+                gradient.addColorStop(0, '#45b392');
+                gradient.addColorStop(1, '#3da183');
+            }
+
+            this.ctx.fillStyle = gradient;
+            
+            // Yuvarlak köşeli dikdörtgen
+            this.roundRect(
+                x + 1,
+                y + 1,
+                this.gridSize - 2,
+                this.gridSize - 2,
+                5
+            );
+
+            // Baş kısmına göz ekle
+            if (index === 0) {
+                this.drawEyes(x, y);
+            }
+        });
+
+        // Yemeği çiz
+        this.drawFood();
+
+        // Güç-up'ı çiz
+        if (this.powerUp) {
+            this.drawPowerUp();
+        }
+
+        // Animasyonları güncelle
+        this.foodAnimation = (this.foodAnimation + 0.1) % (Math.PI * 2);
+        this.snakeAnimation = (this.snakeAnimation + 0.05) % (Math.PI * 2);
+    }
+
+    drawGrid() {
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        this.ctx.lineWidth = 0.5;
+
         for (let i = 0; i < this.canvas.width; i += this.gridSize) {
             this.ctx.beginPath();
             this.ctx.moveTo(i, 0);
             this.ctx.lineTo(i, this.canvas.height);
             this.ctx.stroke();
         }
+
         for (let i = 0; i < this.canvas.height; i += this.gridSize) {
             this.ctx.beginPath();
             this.ctx.moveTo(0, i);
             this.ctx.lineTo(this.canvas.width, i);
             this.ctx.stroke();
         }
+    }
 
-        // Draw snake
-        this.snake.forEach((segment, index) => {
-            const gradient = this.ctx.createLinearGradient(
-                segment.x * this.gridSize,
-                segment.y * this.gridSize,
-                (segment.x + 1) * this.gridSize,
-                (segment.y + 1) * this.gridSize
-            );
-            
-            if (index === 0) {
-                // Head color
-                gradient.addColorStop(0, '#2E7D32');
-                gradient.addColorStop(1, '#4CAF50');
-            } else {
-                // Body color
-                gradient.addColorStop(0, '#4CAF50');
-                gradient.addColorStop(1, '#81C784');
-            }
-            
-            this.ctx.fillStyle = gradient;
-            this.ctx.fillRect(
-                segment.x * this.gridSize + 1,
-                segment.y * this.gridSize + 1,
-                this.gridSize - 2,
-                this.gridSize - 2
-            );
+    roundRect(x, y, width, height, radius) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + radius, y);
+        this.ctx.lineTo(x + width - radius, y);
+        this.ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        this.ctx.lineTo(x + width, y + height - radius);
+        this.ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        this.ctx.lineTo(x + radius, y + height);
+        this.ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        this.ctx.lineTo(x, y + radius);
+        this.ctx.quadraticCurveTo(x, y, x + radius, y);
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
 
-            // Add eyes to head
-            if (index === 0) {
-                this.ctx.fillStyle = 'white';
-                const eyeSize = this.gridSize / 5;
-                const eyeOffset = this.gridSize / 3;
-                
-                // Position eyes based on direction
-                let leftEyeX, leftEyeY, rightEyeX, rightEyeY;
-                switch (this.direction) {
-                    case 'right':
-                        leftEyeX = segment.x * this.gridSize + this.gridSize - eyeOffset;
-                        leftEyeY = segment.y * this.gridSize + eyeOffset;
-                        rightEyeX = segment.x * this.gridSize + this.gridSize - eyeOffset;
-                        rightEyeY = segment.y * this.gridSize + this.gridSize - eyeOffset;
-                        break;
-                    case 'left':
-                        leftEyeX = segment.x * this.gridSize + eyeOffset;
-                        leftEyeY = segment.y * this.gridSize + eyeOffset;
-                        rightEyeX = segment.x * this.gridSize + eyeOffset;
-                        rightEyeY = segment.y * this.gridSize + this.gridSize - eyeOffset;
-                        break;
-                    case 'up':
-                        leftEyeX = segment.x * this.gridSize + eyeOffset;
-                        leftEyeY = segment.y * this.gridSize + eyeOffset;
-                        rightEyeX = segment.x * this.gridSize + this.gridSize - eyeOffset;
-                        rightEyeY = segment.y * this.gridSize + eyeOffset;
-                        break;
-                    case 'down':
-                        leftEyeX = segment.x * this.gridSize + eyeOffset;
-                        leftEyeY = segment.y * this.gridSize + this.gridSize - eyeOffset;
-                        rightEyeX = segment.x * this.gridSize + this.gridSize - eyeOffset;
-                        rightEyeY = segment.y * this.gridSize + this.gridSize - eyeOffset;
-                        break;
-                }
-                
-                this.ctx.beginPath();
-                this.ctx.arc(leftEyeX, leftEyeY, eyeSize, 0, Math.PI * 2);
-                this.ctx.arc(rightEyeX, rightEyeY, eyeSize, 0, Math.PI * 2);
-                this.ctx.fill();
-            }
-        });
+    drawEyes(x, y) {
+        const eyeSize = this.gridSize / 5;
+        const eyeOffset = this.gridSize / 3;
+        
+        this.ctx.fillStyle = 'white';
+        
+        // Gözlerin pozisyonunu yönüne göre ayarla
+        let leftEyeX, leftEyeY, rightEyeX, rightEyeY;
+        switch (this.direction) {
+            case 'right':
+                leftEyeX = x + this.gridSize - eyeOffset;
+                leftEyeY = y + eyeOffset;
+                rightEyeX = x + this.gridSize - eyeOffset;
+                rightEyeY = y + this.gridSize - eyeOffset;
+                break;
+            case 'left':
+                leftEyeX = x + eyeOffset;
+                leftEyeY = y + eyeOffset;
+                rightEyeX = x + eyeOffset;
+                rightEyeY = y + this.gridSize - eyeOffset;
+                break;
+            case 'up':
+                leftEyeX = x + eyeOffset;
+                leftEyeY = y + eyeOffset;
+                rightEyeX = x + this.gridSize - eyeOffset;
+                rightEyeY = y + eyeOffset;
+                break;
+            case 'down':
+                leftEyeX = x + eyeOffset;
+                leftEyeY = y + this.gridSize - eyeOffset;
+                rightEyeX = x + this.gridSize - eyeOffset;
+                rightEyeY = y + this.gridSize - eyeOffset;
+                break;
+        }
+        
+        this.ctx.beginPath();
+        this.ctx.arc(leftEyeX, leftEyeY, eyeSize, 0, Math.PI * 2);
+        this.ctx.arc(rightEyeX, rightEyeY, eyeSize, 0, Math.PI * 2);
+        this.ctx.fill();
+    }
 
-        // Draw food with animation
-        this.foodAnimation = (this.foodAnimation + 0.1) % (Math.PI * 2);
-        const foodSize = this.gridSize - 2 + Math.sin(this.foodAnimation) * 2;
-        const foodX = this.food.x * this.gridSize + (this.gridSize - foodSize) / 2;
-        const foodY = this.food.y * this.gridSize + (this.gridSize - foodSize) / 2;
-
-        this.ctx.fillStyle = '#f44336';
+    drawFood() {
+        const x = this.food.x * this.gridSize;
+        const y = this.food.y * this.gridSize;
+        const size = this.gridSize - 4;
+        
+        // Yemeğin animasyonlu boyutu
+        const pulseSize = Math.sin(this.foodAnimation) * 2;
+        const finalSize = size + pulseSize;
+        
+        // Gradient efekti
+        const gradient = this.ctx.createRadialGradient(
+            x + this.gridSize/2,
+            y + this.gridSize/2,
+            0,
+            x + this.gridSize/2,
+            y + this.gridSize/2,
+            finalSize/2
+        );
+        gradient.addColorStop(0, '#ff6b6b');
+        gradient.addColorStop(1, '#ff4757');
+        
+        this.ctx.fillStyle = gradient;
         this.ctx.beginPath();
         this.ctx.arc(
-            foodX + foodSize/2,
-            foodY + foodSize/2,
-            foodSize/2,
+            x + this.gridSize/2,
+            y + this.gridSize/2,
+            finalSize/2,
+            0,
+            Math.PI * 2
+        );
+        this.ctx.fill();
+        
+        // Parlaklık efekti
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        this.ctx.beginPath();
+        this.ctx.arc(
+            x + this.gridSize/3,
+            y + this.gridSize/3,
+            finalSize/6,
             0,
             Math.PI * 2
         );
         this.ctx.fill();
     }
 
-    endGame() {
-        this.gameOver = true;
-        clearInterval(this.gameLoop);
-        this.gameOverSound.play();
+    drawPowerUp() {
+        const x = this.powerUp.x * this.gridSize;
+        const y = this.powerUp.y * this.gridSize;
+        const size = this.gridSize - 4;
         
-        // Show game over modal
-        this.finalScoreElement.textContent = this.score;
-        this.gameOverModal.style.display = 'flex';
+        // Güç-up'ın animasyonlu boyutu
+        const pulseSize = Math.sin(this.foodAnimation * 2) * 3;
+        const finalSize = size + pulseSize;
+        
+        // Gradient efekti
+        const gradient = this.ctx.createRadialGradient(
+            x + this.gridSize/2,
+            y + this.gridSize/2,
+            0,
+            x + this.gridSize/2,
+            y + this.gridSize/2,
+            finalSize/2
+        );
+        
+        // Güç-up tipine göre renk
+        switch (this.powerUp.type) {
+            case 'speed':
+                gradient.addColorStop(0, '#00b894');
+                gradient.addColorStop(1, '#00a884');
+                break;
+            case 'double':
+                gradient.addColorStop(0, '#fdcb6e');
+                gradient.addColorStop(1, '#e17055');
+                break;
+        }
+        
+        this.ctx.fillStyle = gradient;
+        this.ctx.beginPath();
+        this.ctx.arc(
+            x + this.gridSize/2,
+            y + this.gridSize/2,
+            finalSize/2,
+            0,
+            Math.PI * 2
+        );
+        this.ctx.fill();
+        
+        // Parlaklık efekti
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        this.ctx.beginPath();
+        this.ctx.arc(
+            x + this.gridSize/3,
+            y + this.gridSize/3,
+            finalSize/6,
+            0,
+            Math.PI * 2
+        );
+        this.ctx.fill();
+    }
+
+    generatePowerUp() {
+        if (Math.random() < 0.1) { // %10 şans
+            const maxX = Math.floor(this.canvas.width / this.gridSize);
+            const maxY = Math.floor(this.canvas.height / this.gridSize);
+            
+            let powerUp;
+            do {
+                powerUp = {
+                    x: Math.floor(Math.random() * maxX),
+                    y: Math.floor(Math.random() * maxY),
+                    type: this.powerUpTypes[Math.floor(Math.random() * this.powerUpTypes.length)]
+                };
+            } while (this.snake.some(segment => segment.x === powerUp.x && segment.y === powerUp.y) ||
+                    (this.food.x === powerUp.x && this.food.y === powerUp.y));
+            
+            this.powerUp = powerUp;
+        }
+    }
+
+    activatePowerUp(type) {
+        switch (type) {
+            case 'speed':
+                this.speed = this.originalSpeed / 2;
+                break;
+            case 'double':
+                this.doublePoints = true;
+                break;
+        }
+        
+        // Güç-up süresini başlat
+        if (this.powerUpTimer) {
+            clearTimeout(this.powerUpTimer);
+        }
+        
+        this.powerUpTimer = setTimeout(() => {
+            this.deactivatePowerUp(type);
+        }, this.powerUpDuration);
+    }
+
+    deactivatePowerUp(type) {
+        switch (type) {
+            case 'speed':
+                this.speed = this.originalSpeed;
+                break;
+            case 'double':
+                this.doublePoints = false;
+                break;
+        }
+        
+        if (this.gameLoop) {
+            clearInterval(this.gameLoop);
+            this.gameLoop = setInterval(() => this.update(), this.speed);
+        }
+    }
+
+    start() {
+        if (!this.gameLoop) {
+            this.isGameOver = false;
+            this.isPaused = false;
+            this.gameLoop = setInterval(() => this.update(), this.speed);
+        }
+    }
+
+    togglePause() {
+        this.isPaused = !this.isPaused;
+        document.getElementById('pauseBtn').textContent = this.isPaused ? 'Devam Et' : 'Duraklat';
+    }
+
+    restart() {
+        clearInterval(this.gameLoop);
+        this.snake = [{x: 5, y: 5}];
+        this.direction = 'right';
+        this.nextDirection = 'right';
+        this.score = 0;
+        this.food = this.generateFood();
+        this.isGameOver = false;
+        this.isPaused = false;
+        this.updateUI();
+        this.start();
+        document.getElementById('gameOverModal').style.display = 'none';
+    }
+
+    gameOver() {
+        this.isGameOver = true;
+        clearInterval(this.gameLoop);
+        this.gameLoop = null;
+        this.playGameOverSound();
+        
+        // Modal'ı göster
+        document.getElementById('finalScore').textContent = this.score;
+        document.getElementById('gameOverModal').style.display = 'flex';
+    }
+
+    updateUI() {
+        document.getElementById('score').textContent = this.score;
+        document.getElementById('highScore').textContent = this.highScore;
+    }
+
+    setSpeed() {
+        const speeds = {
+            'easy': 200,
+            'medium': 150,
+            'hard': 100
+        };
+        this.speed = speeds[this.difficulty];
+        if (this.gameLoop) {
+            clearInterval(this.gameLoop);
+            this.gameLoop = setInterval(() => this.update(), this.speed);
+        }
     }
 
     async saveScore() {
-        const playerName = this.playerNameInput.value.trim() || 'Anonim';
+        const playerName = document.getElementById('playerName').value || 'Anonim';
         
         try {
-            const response = await fetch('/api/save-score/', {
+            const response = await fetch('/save_score/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -310,67 +523,38 @@ class SnakeGame {
 
             const data = await response.json();
             if (data.success) {
-                this.loadHighScores();
-                this.gameOverModal.style.display = 'none';
+                alert('Skor başarıyla kaydedildi!');
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('snakeHighScore', this.highScore);
+                    this.updateUI();
+                }
             } else {
-                alert('Skor kaydedilirken bir hata oluştu: ' + data.message);
+                alert('Skor kaydedilirken bir hata oluştu.');
             }
         } catch (error) {
-            alert('Skor kaydedilirken bir hata oluştu: ' + error.message);
+            console.error('Error:', error);
+            alert('Skor kaydedilirken bir hata oluştu.');
         }
     }
 
-    async loadHighScores(difficulty = 'all') {
-        try {
-            const response = await fetch(`/api/high-scores/?difficulty=${difficulty}`);
-            const data = await response.json();
-            
-            if (data.success) {
-                const tbody = document.getElementById('highScoresBody');
-                tbody.innerHTML = '';
-                
-                data.scores.forEach((score, index) => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${index + 1}</td>
-                        <td>${score.player_name}</td>
-                        <td>${score.score}</td>
-                        <td>${score.difficulty}</td>
-                        <td>${score.date}</td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            }
-        } catch (error) {
-            console.error('Yüksek skorlar yüklenirken hata oluştu:', error);
-        }
+    playEatSound() {
+        const audio = new Audio('/static/game/sounds/eat.mp3');
+        audio.play().catch(() => {});
     }
 
-    reset() {
-        this.snake = [{x: 5, y: 5}];
-        this.direction = 'right';
-        this.score = 0;
-        this.scoreElement.textContent = this.score;
-        this.food = this.generateFood();
-        this.gameOver = false;
-        this.foodAnimation = 0;
+    playGameOverSound() {
+        const audio = new Audio('/static/game/sounds/game-over.mp3');
+        audio.play().catch(() => {});
     }
 
-    start() {
-        if (this.gameLoop) {
-            clearInterval(this.gameLoop);
-        }
-        this.reset();
-        this.gameLoop = setInterval(() => this.update(), this.speed);
-    }
-
-    togglePause() {
-        this.isPaused = !this.isPaused;
-        this.pauseBtn.textContent = this.isPaused ? 'Devam Et' : 'Duraklat';
+    playPowerUpSound() {
+        const audio = new Audio('/static/game/sounds/power-up.mp3');
+        audio.play().catch(() => {});
     }
 }
 
-// Start the game when the page loads
+// Oyunu başlat
 window.onload = () => {
-    new SnakeGame();
+    const game = new SnakeGame();
 }; 
