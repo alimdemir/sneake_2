@@ -14,6 +14,15 @@ def format_scores(scores):
         'date': score.date.strftime('%d/%m/%Y %H:%M')
     } for score in scores]
 
+# Helper function to handle JSON responses
+def create_json_response(success, message=None, data=None, status=200):
+    response = {'success': success}
+    if message:
+        response['message'] = message
+    if data:
+        response.update(data)
+    return JsonResponse(response, status=status)
+
 # Create your views here.
 
 def index(request):
@@ -41,28 +50,36 @@ def save_score(request):
         top_scores = HighScore.objects.all()[:10]
         scores_list = format_scores(top_scores)
 
-        return JsonResponse({
-            'success': True,
-            'message': 'Skor başarıyla kaydedildi',
-            'top_scores': scores_list
-        })
+        return create_json_response(
+            success=True,
+            message='Skor başarıyla kaydedildi',
+            data={'top_scores': scores_list}
+        )
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': str(e)
-        }, status=400)
+        return create_json_response(
+            success=False,
+            message=str(e),
+            status=400
+        )
 
 @require_http_methods(["GET"])
 def get_high_scores(request):
     difficulty = request.GET.get('difficulty', 'all')
-    if difficulty != 'all':
-        scores = HighScore.objects.filter(difficulty=difficulty)[:10]
-    else:
-        scores = HighScore.objects.all()[:10]
+    try:
+        if difficulty != 'all':
+            scores = HighScore.objects.filter(difficulty=difficulty)[:10]
+        else:
+            scores = HighScore.objects.all()[:10]
 
-    scores_list = format_scores(scores)
+        scores_list = format_scores(scores)
 
-    return JsonResponse({
-        'success': True,
-        'scores': scores_list
-    })
+        return create_json_response(
+            success=True,
+            data={'scores': scores_list}
+        )
+    except Exception as e:
+        return create_json_response(
+            success=False,
+            message=str(e),
+            status=400
+        )
