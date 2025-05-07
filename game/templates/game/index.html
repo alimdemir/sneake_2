@@ -1,88 +1,82 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yılan Oyunu</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'game/css/style.css' %}">
+    <title>Yüksek Skorlar</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table th, table td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        table th {
+            background-color: #f4f4f4;
+        }
+        table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Yılan Oyunu</h1>
-        <div class="game-info">
-            <div class="score">Skor: <span id="score">0</span></div>
-            <div class="high-score">En Yüksek Skor: <span id="highScore">0</span></div>
-        </div>
-        <div class="game-container">
-            <canvas id="gameCanvas"></canvas>
-            <div class="mobile-controls">
-                <button id="upBtn">↑</button>
-                <div class="horizontal-controls">
-                    <button id="leftBtn">←</button>
-                    <button id="rightBtn">→</button>
-                </div>
-                <button id="downBtn">↓</button>
-            </div>
-        </div>
-        <div class="controls">
-            <select id="difficulty">
-                <option value="easy">Kolay</option>
-                <option value="medium" selected>Orta</option>
-                <option value="hard">Zor</option>
-            </select>
-            <button id="startBtn">Başlat</button>
-            <button id="pauseBtn">Duraklat</button>
-        </div>
-        
-        <div class="high-scores-container">
-            <h2>Yüksek Skorlar</h2>
-            <div class="difficulty-filter">
-                <button class="filter-btn active" data-difficulty="all">Tümü</button>
-                <button class="filter-btn" data-difficulty="easy">Kolay</button>
-                <button class="filter-btn" data-difficulty="medium">Orta</button>
-                <button class="filter-btn" data-difficulty="hard">Zor</button>
-            </div>
-            <table class="high-scores-table">
-                <thead>
-                    <tr>
-                        <th>Sıra</th>
-                        <th>Oyuncu</th>
-                        <th>Skor</th>
-                        <th>Zorluk</th>
-                        <th>Tarih</th>
-                    </tr>
-                </thead>
-                <tbody id="highScoresBody">
-                    {% for score in high_scores %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td>{{ score.player_name }}</td>
-                        <td>{{ score.score }}</td>
-                        <td>{{ score.difficulty }}</td>
-                        <td>{{ score.date|date:"d/m/Y H:i" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <h1>Yüksek Skorlar</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Oyuncu Adı</th>
+                    <th>Skor</th>
+                    <th>Zorluk</th>
+                    <th>Tarih</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for score in high_scores %}
+                <tr>
+                    <td>{{ score.player_name }}</td>
+                    <td>{{ score.score }}</td>
+                    <td>{{ score.difficulty }}</td>
+                    <td>{{ score.date|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="text-align: center;">Henüz skor bulunmamaktadır.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="footer">
+            <p>Snake Oyunu © 2025</p>
         </div>
     </div>
-
-    <div id="gameOverModal" class="modal">
-        <div class="modal-content">
-            <h2>Oyun Bitti!</h2>
-            <p>Skorunuz: <span id="finalScore">0</span></p>
-            <div class="player-name-input">
-                <label for="playerName">İsminiz:</label>
-                <input type="text" id="playerName" maxlength="50" placeholder="İsminizi girin">
-            </div>
-            <button id="saveScoreBtn">Skoru Kaydet</button>
-            <button id="playAgainBtn">Tekrar Oyna</button>
-        </div>
-    </div>
-
-    <audio id="eatSound" src="{% static 'game/sounds/eat.mp3' %}" preload="auto"></audio>
-    <audio id="gameOverSound" src="{% static 'game/sounds/game-over.mp3' %}" preload="auto"></audio>
-    <script src="{% static 'game/js/game.js' %}"></script>
 </body>
-</html> 
+</html>
