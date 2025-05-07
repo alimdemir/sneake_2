@@ -26,8 +26,7 @@ def create_json_response(success, message=None, data=None, status=200):
 # Create your views here.
 
 def index(request):
-    high_scores = HighScore.objects.all()[:10]  # En yüksek 10 skoru al
-    return render(request, 'game/index.html', {'high_scores': high_scores})
+    return render(request, 'game/game.html')
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -47,39 +46,47 @@ def save_score(request):
         high_score.save()
 
         # En yüksek 10 skoru döndür
-        top_scores = HighScore.objects.all()[:10]
-        scores_list = format_scores(top_scores)
+        top_scores = HighScore.objects.all().order_by('-score')[:10]
+        scores_list = [{
+            'player_name': score.player_name,
+            'score': score.score,
+            'difficulty': score.difficulty,
+            'date': score.date.strftime('%d/%m/%Y %H:%M')
+        } for score in top_scores]
 
-        return create_json_response(
-            success=True,
-            message='Skor başarıyla kaydedildi',
-            data={'top_scores': scores_list}
-        )
+        return JsonResponse({
+            'success': True,
+            'message': 'Skor başarıyla kaydedildi',
+            'top_scores': scores_list
+        })
     except Exception as e:
-        return create_json_response(
-            success=False,
-            message=str(e),
-            status=400
-        )
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=400)
 
 @require_http_methods(["GET"])
 def get_high_scores(request):
     difficulty = request.GET.get('difficulty', 'all')
     try:
         if difficulty != 'all':
-            scores = HighScore.objects.filter(difficulty=difficulty)[:10]
+            scores = HighScore.objects.filter(difficulty=difficulty).order_by('-score')[:10]
         else:
-            scores = HighScore.objects.all()[:10]
+            scores = HighScore.objects.all().order_by('-score')[:10]
 
-        scores_list = format_scores(scores)
+        scores_list = [{
+            'player_name': score.player_name,
+            'score': score.score,
+            'difficulty': score.difficulty,
+            'date': score.date.strftime('%d/%m/%Y %H:%M')
+        } for score in scores]
 
-        return create_json_response(
-            success=True,
-            data={'scores': scores_list}
-        )
+        return JsonResponse({
+            'success': True,
+            'scores': scores_list
+        })
     except Exception as e:
-        return create_json_response(
-            success=False,
-            message=str(e),
-            status=400
-        )
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=400)

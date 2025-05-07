@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <link rel="stylesheet" href="/static/game/css/style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>Snake Game</h1>
+            <div class="score-container">
+                <span>Skor: </span>
+                <span id="score">0</span>
+            </div>
+            <div class="high-score-container">
+                <span>En Yüksek Skor: </span>
+                <span id="highScore">0</span>
+            </div>
+            <div class="power-up-info">
+                <div id="speedPowerUp" class="power-up-indicator">
+                    <span class="power-up-icon">⚡</span>
+                    <span class="power-up-timer"></span>
+                </div>
+                <div id="doublePowerUp" class="power-up-indicator">
+                    <span class="power-up-icon">2x</span>
+                    <span class="power-up-timer"></span>
+                </div>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+        
+        <div class="controls">
+            <div class="difficulty">
+                <label for="difficulty">Zorluk:</label>
+                <select id="difficulty">
+                    <option value="easy">Kolay</option>
+                    <option value="medium" selected>Orta</option>
+                    <option value="hard">Zor</option>
+                </select>
+            </div>
+            
+            <div class="buttons">
+                <button id="startBtn">Başlat</button>
+                <button id="pauseBtn">Duraklat</button>
+                <button id="restartBtn">Yeniden Başlat</button>
+            </div>
+        </div>
+
+        <div class="mobile-controls">
+            <button id="upBtn">↑</button>
+            <div class="horizontal-controls">
+                <button id="leftBtn">←</button>
+                <button id="rightBtn">→</button>
+            </div>
+            <button id="downBtn">↓</button>
+        </div>
+
+        <div class="game-info">
+            <h3>Güç-up'lar:</h3>
+            <ul>
+                <li>⚡ Hız: Yılanı 5 saniye boyunca hızlandırır</li>
+                <li>2x Çift Puan: 5 saniye boyunca 2 kat puan kazanırsın</li>
+            </ul>
+            <h3>Kontroller:</h3>
+            <ul>
+                <li>⬆️ Yukarı Ok / W: Yukarı git</li>
+                <li>⬇️ Aşağı Ok / S: Aşağı git</li>
+                <li>⬅️ Sol Ok / A: Sola git</li>
+                <li>➡️ Sağ Ok / D: Sağa git</li>
+                <li>P: Oyunu Duraklat/Devam Et</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content">
+            <h2>Oyun Bitti!</h2>
+            <p>Skorunuz: <span id="finalScore">0</span></p>
+            <div class="player-info">
+                <input type="text" id="playerName" placeholder="Adınızı girin">
+                <button id="saveScoreBtn">Skoru Kaydet</button>
+            </div>
+            <button id="playAgainBtn">Tekrar Oyna</button>
+        </div>
+    </div>
+
+    <script src="/static/game/js/game.js"></script>
+</body>
+</html> 
